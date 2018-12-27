@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if [ ! -d $AUTOMATA_BIN ]; then
+  git clone -b $AUTOMATA_GIT_BRANCH $AUTOMATA_GIT_REPO $AUTOMATA_HOME
+fi
+
+cd $AUTOMATA_HOME
+git fetch
+git checkout -f .
+git clean -f -d
+git branch | grep " ${AUTOMATA_GIT_BRANCH}$"
+if [ $? -eq 0 ]; then
+  git checkout $AUTOMATA_GIT_BRANCH
+else
+  git checkout -b $AUTOMATA_GIT_BRANCH origin/$AUTOMATA_GIT_BRANCH
+fi
+git pull
