@@ -43,7 +43,7 @@ RUN apk add --update \
 
 # Install robotframework and libraries
 RUN pip install \
-    robotframework-extendedselenium2library \
+    robotframework-selenium2library \
     robotframework-appiumlibrary \
     robotframework-excellentlibrary
 
