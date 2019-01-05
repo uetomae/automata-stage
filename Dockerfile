@@ -38,6 +38,7 @@ RUN apk add --update \
     firefox-esr \
     xvfb \
     ttf-freefont \
+    bats \
     && pip install --upgrade pip \
     && rm -rf /var/cache/apk/**/
 
