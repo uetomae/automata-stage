@@ -21,11 +21,9 @@ ENV SCREEN_WIDTH 1920
 VOLUME $AUTOMATA_TEST
 
 # Install base system and dependencies
-RUN apk add --update \
-    py-pip \
+RUN apk add --no-cache \
+    python \
     build-base \
-    py-boto \
-    libffi-dev \
     openssl \
     openssl-dev \
     bash \
@@ -33,23 +31,26 @@ RUN apk add --update \
     curl \
     jq \
     udev \
-    chromium \
-    chromium-chromedriver \
-    firefox-esr \
-    xvfb \
-    ttf-freefont \
-    bats \
-    && pip install --upgrade pip \
-    && rm -rf /var/cache/apk/**/
+    bats
 
 # Install robotframework and libraries
-RUN pip install \
+RUN apk add --no-cache --virtual=.build-deps \
+    py-pip \
+    py-boto \
+    libffi-dev \
+    && pip install --upgrade pip \
+    && pip install \
     robotframework-selenium2library \
     robotframework-appiumlibrary \
-    robotframework-excellentlibrary
+    robotframework-excellentlibrary \
+    && apk del .build-deps
 
-# Disabling sandbox and gpu options as default of chrome browser
-RUN sed -i "s/self._arguments\ =\ \[\]/self._arguments\ =\ \['--no-sandbox',\ '--disable-gpu'\]/" /usr/lib/python2.7/site-packages/selenium/webdriver/chrome/options.py
+# Install chromium browser and disabling sandbox and gpu options as default of it
+RUN apk add --no-cache \
+    chromium \
+    chromium-chromedriver \
+    xvfb \
+    && sed -i "s/self._arguments\ =\ \[\]/self._arguments\ =\ \['--no-sandbox',\ '--disable-gpu'\]/" /usr/lib/python2.7/site-packages/selenium/webdriver/chrome/options.py
 
 # Install alpine-pkg-glib to fix compatibility problem with Java 8
 # See: https://github.com/gliderlabs/docker-alpine/issues/11
