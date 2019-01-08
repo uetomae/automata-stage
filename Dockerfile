@@ -30,7 +30,6 @@ RUN apk add --no-cache \
     git \
     curl \
     jq \
-    udev \
     bats
 
 # Install robotframework and libraries
@@ -47,10 +46,24 @@ RUN apk add --no-cache --virtual=.build-deps \
 
 # Install chromium browser and disabling sandbox and gpu options as default of it
 RUN apk add --no-cache \
+    udev \
+    ttf-freefont \
     chromium \
     chromium-chromedriver \
     xvfb \
     && sed -i "s/self._arguments\ =\ \[\]/self._arguments\ =\ \['--no-sandbox',\ '--disable-gpu'\]/" /usr/lib/python2.7/site-packages/selenium/webdriver/chrome/options.py
+
+# Install Japanese font
+RUN mkdir /noto
+ADD https://noto-website.storage.googleapis.com/pkgs/NotoSansCJKjp-hinted.zip /noto
+WORKDIR /noto
+RUN unzip NotoSansCJKjp-hinted.zip && \
+    mkdir -p /usr/share/fonts/noto && \
+    cp *.otf /usr/share/fonts/noto && \
+    chmod 644 -R /usr/share/fonts/noto/ && \
+    fc-cache -fv
+WORKDIR /
+RUN rm -rf /noto
 
 # Install alpine-pkg-glib to fix compatibility problem with Java 8
 # See: https://github.com/gliderlabs/docker-alpine/issues/11
