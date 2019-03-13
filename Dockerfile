@@ -42,6 +42,9 @@ RUN apk add --no-cache --virtual=.build-deps \
     robotframework-selenium2library \
     robotframework-appiumlibrary \
     robotframework-excellentlibrary \
+    requests \
+    pathlib \
+    bs4 \
     && apk del .build-deps
 
 # Install chromium browser and disabling sandbox and gpu options as default of it
