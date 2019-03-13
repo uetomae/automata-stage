@@ -39,7 +39,7 @@ RUN apk add --no-cache --virtual=.build-deps \
     libffi-dev \
     && pip install --upgrade pip \
     && pip install \
-    robotframework-selenium2library \
+    robotframework-extendedselenium2library \
     robotframework-appiumlibrary \
     robotframework-excellentlibrary \
     && apk del .build-deps
