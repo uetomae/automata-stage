@@ -23,9 +23,11 @@ VOLUME $AUTOMATA_TEST
 # Install base system and dependencies
 RUN apk add --no-cache \
     python \
+    python-dev \
     build-base \
     openssl \
     openssl-dev \
+    jpeg-dev \
     bash \
     git \
     curl \
@@ -45,6 +47,7 @@ RUN apk add --no-cache --virtual=.build-deps \
     requests \
     pathlib \
     bs4 \
+    pyocr \
     && apk del .build-deps
 
 # Install chromium browser and disabling sandbox and gpu options as default of it
