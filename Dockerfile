@@ -28,11 +28,13 @@ RUN apk add --no-cache \
     openssl \
     openssl-dev \
     jpeg-dev \
+    tesseract-ocr \
     bash \
     git \
     curl \
     jq \
-    bats
+    bats \
+    && wget -q -P /usr/share/tessdata/ https://github.com/tesseract-ocr/tessdata/raw/master/jpn.traineddata
 
 # Install robotframework and libraries
 RUN apk add --no-cache --virtual=.build-deps \
