@@ -25,16 +25,56 @@ RUN apk add --no-cache \
     python \
     python-dev \
     build-base \
+    giflib-dev \
+    openjpeg-dev \
     openssl \
     openssl-dev \
     jpeg-dev \
-    tesseract-ocr \
     bash \
     git \
     curl \
     jq \
-    bats \
-    && wget -q -P /usr/share/tessdata/ https://github.com/tesseract-ocr/tessdata/raw/master/jpn.traineddata
+    bats
+
+RUN apk add --no-cache --virtual .build-deps \
+          alpine-sdk \
+          autoconf \
+          automake \
+          cairo-dev \
+          icu-dev \
+          libjpeg-turbo-dev \
+          libpng-dev \
+          libtool \
+          libwebp-dev \
+          pango-dev \
+          tiff-dev \
+          zlib-dev; \
+      cd /var/tmp; \
+      wget http://www.leptonica.org/source/leptonica-1.75.3.tar.gz; \
+      tar xfv leptonica-1.75.3.tar.gz; \
+      rm leptonica-1.75.3.tar.gz; \
+      cd leptonica-1.75.3; \
+      ./configure --prefix=/usr/local/; \
+      make; \
+      make install; \
+      cd /var/tmp; \
+      rm -rf leptonica-1.75.3; \
+      git clone https://github.com/tesseract-ocr/tesseract.git; \
+      cd tesseract; \
+      git checkout 4.0.0-r1; \
+      ./autogen.sh; \
+      ./configure --prefix=/usr/local/; \
+      make; \
+      make install; \
+      cd /var/tmp; \
+      rm -rf tesseract; \
+      mkdir -p /tesseract/tessdata; \
+      cd /tesseract/tessdata/; \
+      wget https://github.com/tesseract-ocr/tessdata/raw/3.04.00/eng.traineddata; \
+      cd /; \
+      chown -R tesseract:tesseract /tesseract; \
+      wget -q -P /usr/local/share/tessdata/ https://github.com/tesseract-ocr/tessdata_best/raw/master/jpn.traineddata; \
+      apk del .build-deps;
 
 # Install robotframework and libraries
 RUN apk add --no-cache --virtual=.build-deps \
@@ -50,6 +90,7 @@ RUN apk add --no-cache --virtual=.build-deps \
     pathlib \
     bs4 \
     pyocr \
+    pytesseract \
     && apk del .build-deps
 
 # Install chromium browser and disabling sandbox and gpu options as default of it
