@@ -24,6 +24,7 @@ VOLUME $AUTOMATA_TEST
 RUN apk add --no-cache \
     python \
     python-dev \
+    py-pip \
     build-base \
     giflib-dev \
     openjpeg-dev \
@@ -34,9 +35,76 @@ RUN apk add --no-cache \
     git \
     curl \
     jq \
-    bats
-
-RUN apk add --no-cache --virtual .build-deps \
+    bats \
+    udev \
+    ttf-freefont \
+    chromium \
+    chromium-chromedriver \
+    xvfb \
+    && pip install --upgrade pip \
+    && pip install \
+      robotframework-selenium2library \
+      robotframework-appiumlibrary \
+      robotframework-excellentlibrary \
+      requests \
+      pathlib \
+      bs4 \
+      pyocr \
+      pytesseract \
+    && sed -i "s/self._arguments\ =\ \[\]/self._arguments\ =\ \['--no-sandbox',\ '--disable-gpu'\]/" /usr/lib/python2.7/site-packages/selenium/webdriver/chrome/options.py \
+    && mkdir /noto && cd /noto \
+    && wget https://noto-website.storage.googleapis.com/pkgs/NotoSansCJKjp-hinted.zip \
+    && unzip NotoSansCJKjp-hinted.zip \
+    && mkdir -p /usr/share/fonts/noto \
+    && cp *.otf /usr/share/fonts/noto \
+    && chmod 644 -R /usr/share/fonts/noto/ \
+    && fc-cache -fv \
+    && cd / && rm -fR /noto \
+    && ALPINE_GLIBC_BASE_URL="https://github.com/sgerrand/alpine-pkg-glibc/releases/download" \
+    && ALPINE_GLIBC_PACKAGE_VERSION="2.28-r0" \
+    && ALPINE_GLIBC_BASE_PACKAGE_FILENAME="glibc-$ALPINE_GLIBC_PACKAGE_VERSION.apk" \
+    && ALPINE_GLIBC_BIN_PACKAGE_FILENAME="glibc-bin-$ALPINE_GLIBC_PACKAGE_VERSION.apk" \
+    && ALPINE_GLIBC_I18N_PACKAGE_FILENAME="glibc-i18n-$ALPINE_GLIBC_PACKAGE_VERSION.apk" \
+    && apk add --no-cache --virtual=.build-dependencies wget ca-certificates \
+    && echo \
+        "-----BEGIN PUBLIC KEY-----\
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApZ2u1KJKUu/fW4A25y9m\
+        y70AGEa/J3Wi5ibNVGNn1gT1r0VfgeWd0pUybS4UmcHdiNzxJPgoWQhV2SSW1JYu\
+        tOqKZF5QSN6X937PTUpNBjUvLtTQ1ve1fp39uf/lEXPpFpOPL88LKnDBgbh7wkCp\
+        m2KzLVGChf83MS0ShL6G9EQIAUxLm99VpgRjwqTQ/KfzGtpke1wqws4au0Ab4qPY\
+        KXvMLSPLUp7cfulWvhmZSegr5AdhNw5KNizPqCJT8ZrGvgHypXyiFvvAH5YRtSsc\
+        Zvo9GI2e2MaZyo9/lvb+LbLEJZKEQckqRj4P26gmASrZEPStwc+yqy1ShHLA0j6m\
+        1QIDAQAB\
+        -----END PUBLIC KEY-----" | sed 's/   */\n/g' > "/etc/apk/keys/sgerrand.rsa.pub" \
+    && wget \
+        "$ALPINE_GLIBC_BASE_URL/$ALPINE_GLIBC_PACKAGE_VERSION/$ALPINE_GLIBC_BASE_PACKAGE_FILENAME" \
+        "$ALPINE_GLIBC_BASE_URL/$ALPINE_GLIBC_PACKAGE_VERSION/$ALPINE_GLIBC_BIN_PACKAGE_FILENAME" \
+        "$ALPINE_GLIBC_BASE_URL/$ALPINE_GLIBC_PACKAGE_VERSION/$ALPINE_GLIBC_I18N_PACKAGE_FILENAME" \
+    && apk add --no-cache \
+        "$ALPINE_GLIBC_BASE_PACKAGE_FILENAME" \
+        "$ALPINE_GLIBC_BIN_PACKAGE_FILENAME" \
+        "$ALPINE_GLIBC_I18N_PACKAGE_FILENAME" \
+    \
+    && rm "/etc/apk/keys/sgerrand.rsa.pub" \
+    && /usr/glibc-compat/bin/localedef --force --inputfile POSIX --charmap UTF-8 "$LANG" || true \
+    && echo "export LANG=$LANG" > /etc/profile.d/locale.sh \
+    \
+    && apk del glibc-i18n \
+    \
+    && rm "/root/.wget-hsts" \
+    && apk del .build-dependencies \
+    && rm \
+        "$ALPINE_GLIBC_BASE_PACKAGE_FILENAME" \
+        "$ALPINE_GLIBC_BIN_PACKAGE_FILENAME" \
+        "$ALPINE_GLIBC_I18N_PACKAGE_FILENAME" \
+    \
+    && cd \
+    && wget -q https://www.browserstack.com/browserstack-local/BrowserStackLocal-linux-x64.zip \
+    && unzip BrowserStackLocal-linux-x64.zip \
+    && rm BrowserStackLocal-linux-x64.zip \
+    && mv BrowserStackLocal /usr/local/bin/ \
+    && git clone -b $AUTOMATA_GIT_BRANCH $AUTOMATA_GIT_REPO $AUTOMATA_HOME \
+    && apk add --no-cache --virtual .build-deps \
           alpine-sdk \
           autoconf \
           automake \
@@ -48,6 +116,9 @@ RUN apk add --no-cache --virtual .build-deps \
           libwebp-dev \
           pango-dev \
           tiff-dev \
+          py-pip \
+          py-boto \
+          libffi-dev \
           zlib-dev; \
       cd /var/tmp; \
       wget http://www.leptonica.org/source/leptonica-1.75.3.tar.gz; \
@@ -73,96 +144,8 @@ RUN apk add --no-cache --virtual .build-deps \
       wget https://github.com/tesseract-ocr/tessdata/raw/3.04.00/eng.traineddata; \
       cd /; \
       chown -R tesseract:tesseract /tesseract; \
-      wget -q -P /usr/local/share/tessdata/ https://github.com/tesseract-ocr/tessdata_best/raw/master/jpn.traineddata; \
-      apk del .build-deps;
-
-# Install robotframework and libraries
-RUN apk add --no-cache --virtual=.build-deps \
-    py-pip \
-    py-boto \
-    libffi-dev \
-    && pip install --upgrade pip \
-    && pip install \
-    robotframework-selenium2library \
-    robotframework-appiumlibrary \
-    robotframework-excellentlibrary \
-    requests \
-    pathlib \
-    bs4 \
-    pyocr \
-    pytesseract \
+      wget -q -P /usr/local/share/tessdata/ https://github.com/tesseract-ocr/tessdata_best/raw/master/jpn.traineddata \
     && apk del .build-deps
-
-# Install chromium browser and disabling sandbox and gpu options as default of it
-RUN apk add --no-cache \
-    udev \
-    ttf-freefont \
-    chromium \
-    chromium-chromedriver \
-    xvfb \
-    && sed -i "s/self._arguments\ =\ \[\]/self._arguments\ =\ \['--no-sandbox',\ '--disable-gpu'\]/" /usr/lib/python2.7/site-packages/selenium/webdriver/chrome/options.py
-
-# Install Japanese font
-RUN mkdir /noto
-ADD https://noto-website.storage.googleapis.com/pkgs/NotoSansCJKjp-hinted.zip /noto
-WORKDIR /noto
-RUN unzip NotoSansCJKjp-hinted.zip && \
-    mkdir -p /usr/share/fonts/noto && \
-    cp *.otf /usr/share/fonts/noto && \
-    chmod 644 -R /usr/share/fonts/noto/ && \
-    fc-cache -fv
-WORKDIR /
-RUN rm -rf /noto
-
-# Install alpine-pkg-glib to fix compatibility problem with Java 8
-# See: https://github.com/gliderlabs/docker-alpine/issues/11
-RUN ALPINE_GLIBC_BASE_URL="https://github.com/sgerrand/alpine-pkg-glibc/releases/download" && \
-    ALPINE_GLIBC_PACKAGE_VERSION="2.28-r0" && \
-    ALPINE_GLIBC_BASE_PACKAGE_FILENAME="glibc-$ALPINE_GLIBC_PACKAGE_VERSION.apk" && \
-    ALPINE_GLIBC_BIN_PACKAGE_FILENAME="glibc-bin-$ALPINE_GLIBC_PACKAGE_VERSION.apk" && \
-    ALPINE_GLIBC_I18N_PACKAGE_FILENAME="glibc-i18n-$ALPINE_GLIBC_PACKAGE_VERSION.apk" && \
-    apk add --no-cache --virtual=.build-dependencies wget ca-certificates && \
-    echo \
-        "-----BEGIN PUBLIC KEY-----\
-        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApZ2u1KJKUu/fW4A25y9m\
-        y70AGEa/J3Wi5ibNVGNn1gT1r0VfgeWd0pUybS4UmcHdiNzxJPgoWQhV2SSW1JYu\
-        tOqKZF5QSN6X937PTUpNBjUvLtTQ1ve1fp39uf/lEXPpFpOPL88LKnDBgbh7wkCp\
-        m2KzLVGChf83MS0ShL6G9EQIAUxLm99VpgRjwqTQ/KfzGtpke1wqws4au0Ab4qPY\
-        KXvMLSPLUp7cfulWvhmZSegr5AdhNw5KNizPqCJT8ZrGvgHypXyiFvvAH5YRtSsc\
-        Zvo9GI2e2MaZyo9/lvb+LbLEJZKEQckqRj4P26gmASrZEPStwc+yqy1ShHLA0j6m\
-        1QIDAQAB\
-        -----END PUBLIC KEY-----" | sed 's/   */\n/g' > "/etc/apk/keys/sgerrand.rsa.pub" && \
-    wget \
-        "$ALPINE_GLIBC_BASE_URL/$ALPINE_GLIBC_PACKAGE_VERSION/$ALPINE_GLIBC_BASE_PACKAGE_FILENAME" \
-        "$ALPINE_GLIBC_BASE_URL/$ALPINE_GLIBC_PACKAGE_VERSION/$ALPINE_GLIBC_BIN_PACKAGE_FILENAME" \
-        "$ALPINE_GLIBC_BASE_URL/$ALPINE_GLIBC_PACKAGE_VERSION/$ALPINE_GLIBC_I18N_PACKAGE_FILENAME" && \
-    apk add --no-cache \
-        "$ALPINE_GLIBC_BASE_PACKAGE_FILENAME" \
-        "$ALPINE_GLIBC_BIN_PACKAGE_FILENAME" \
-        "$ALPINE_GLIBC_I18N_PACKAGE_FILENAME" && \
-    \
-    rm "/etc/apk/keys/sgerrand.rsa.pub" && \
-    /usr/glibc-compat/bin/localedef --force --inputfile POSIX --charmap UTF-8 "$LANG" || true && \
-    echo "export LANG=$LANG" > /etc/profile.d/locale.sh && \
-    \
-    apk del glibc-i18n && \
-    \
-    rm "/root/.wget-hsts" && \
-    apk del .build-dependencies && \
-    rm \
-        "$ALPINE_GLIBC_BASE_PACKAGE_FILENAME" \
-        "$ALPINE_GLIBC_BIN_PACKAGE_FILENAME" \
-        "$ALPINE_GLIBC_I18N_PACKAGE_FILENAME"
-
-# Install BrowserStackLocal
-RUN cd \
-&&  wget -q https://www.browserstack.com/browserstack-local/BrowserStackLocal-linux-x64.zip \
-&&  unzip BrowserStackLocal-linux-x64.zip \
-&&  rm BrowserStackLocal-linux-x64.zip \
-&&  mv BrowserStackLocal /usr/local/bin/
-
-# Clone automata
-RUN git clone -b $AUTOMATA_GIT_BRANCH $AUTOMATA_GIT_REPO $AUTOMATA_HOME
 
 COPY bin/uetomae-automata-update $AUTOTEST_BIN/
 
